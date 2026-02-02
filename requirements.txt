@@ -6,3 +6,4 @@ mss
 numpy
 paramiko
 pyglet
+pywin32

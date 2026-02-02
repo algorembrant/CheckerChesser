@@ -5,7 +5,7 @@ import time
 from src.game_state import GameState
 from src.engine import EngineHandler
 from src.board_ui import BoardUI
-from src.overlay import SelectionOverlay
+from src.overlay import SelectionOverlay, ProjectionOverlay
 from src.vision import VisionHandler
 
 class ChessApp(ctk.CTk):
@@ -19,6 +19,12 @@ class ChessApp(ctk.CTk):
         self.game_state = GameState()
         self.engine = EngineHandler()
         self.vision = VisionHandler()
+        
+        # Screen Analysis State
+        self.monitoring = False
+        self.monitor_region = None
+        self.projection_overlay = None
+        self.last_fen = None
         
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=0) # Sidebar
@@ -36,9 +42,13 @@ class ChessApp(ctk.CTk):
         
         self.analysis_btn = ctk.CTkButton(self.sidebar, text="Screen Analysis", command=self.start_screen_analysis)
         self.analysis_btn.grid(row=2, column=0, padx=20, pady=10)
+        
+        self.stop_btn = ctk.CTkButton(self.sidebar, text="Stop Monitoring", command=self.stop_monitoring, fg_color="red", hover_color="darkred")
+        self.stop_btn.grid(row=3, column=0, padx=20, pady=10)
+        self.stop_btn.grid_remove() # Hidden by default
 
         self.status_label = ctk.CTkLabel(self.sidebar, text="Status: Idle", anchor="w")
-        self.status_label.grid(row=3, column=0, padx=20, pady=(20, 0), sticky="ew")
+        self.status_label.grid(row=4, column=0, padx=20, pady=(20, 0), sticky="ew")
 
         # Content Area
         self.content_frame = ctk.CTkFrame(self, corner_radius=0, fg_color="transparent")
@@ -62,6 +72,8 @@ class ChessApp(ctk.CTk):
         threading.Thread(target=_init, daemon=True).start()
 
     def start_local_game(self):
+        self.stop_monitoring() # Stop any active monitoring
+        
         # Clear content
         for widget in self.content_frame.winfo_children():
             widget.destroy()
@@ -87,45 +99,99 @@ class ChessApp(ctk.CTk):
         # Function called when region is selected
         def on_selection(region):
             self.deiconify() # Show main win
-            self.process_screen_region(region)
+            self.begin_monitoring(region)
 
         SelectionOverlay(self, on_selection)
 
-    def process_screen_region(self, region):
-        self.status_label.configure(text="Analyzing...")
+    def begin_monitoring(self, region):
+        """
+        Start continuous monitoring of the selected region.
+        Assumes the board is at the STARTING POSITION for calibration.
+        """
+        self.monitor_region = region
+        self.monitoring = True
+        self.last_fen = None
         
-        # Placeholder for analysis view
+        self.stop_btn.grid() # Show stop button
+        
+        # Clear content and show monitoring UI
         for widget in self.content_frame.winfo_children():
-             widget.destroy()
+            widget.destroy()
         
-        analysis_label = ctk.CTkLabel(self.content_frame, text=f"Analyzing Region: {region}...\n(Vision Not Fully Implemented)", font=("Arial", 16))
-        analysis_label.grid(row=0, column=0)
+        info_label = ctk.CTkLabel(self.content_frame, text="Monitoring Active\nCalibrating from starting position...", font=("Arial", 18))
+        info_label.grid(row=0, column=0, pady=20)
         
-        def _analyze():
-            # 1. Capture and Recognize
-            img = self.vision.capture_screen(region)
-            fen = self.vision.get_fen_from_image(img) # currently dummy
+        self.move_label = ctk.CTkLabel(self.content_frame, text="Best Move: --", font=("Arial", 24, "bold"))
+        self.move_label.grid(row=1, column=0, pady=10)
+        
+        self.fen_label = ctk.CTkLabel(self.content_frame, text="FEN: --", wraplength=500)
+        self.fen_label.grid(row=2, column=0, pady=10)
+        
+        # Create projection overlay
+        self.projection_overlay = ProjectionOverlay(region)
+        
+        # Start monitoring thread
+        threading.Thread(target=self.monitor_loop, daemon=True).start()
+        self.status_label.configure(text="Mode: Screen Monitoring")
+
+    def monitor_loop(self):
+        """
+        Continuously capture, recognize, and analyze.
+        """
+        calibrated = False
+        
+        while self.monitoring:
+            try:
+                img = self.vision.capture_screen(self.monitor_region)
+                
+                if not calibrated:
+                    # Calibrate on first pass (assumes starting position)
+                    self.vision.calibrate(img)
+                    calibrated = True
+                    self.after(0, lambda: self.status_label.configure(text="Calibrated! Monitoring..."))
+                
+                fen = self.vision.get_fen_from_image(img)
+                
+                if fen and fen != self.last_fen:
+                    self.last_fen = fen
+                    
+                    # Get best move
+                    best_move = self.engine.get_best_move(fen, time_limit=0.5)
+                    
+                    # Update UI on main thread
+                    self.after(0, lambda m=best_move, f=fen: self.update_monitoring_ui(m, f))
+                    
+            except Exception as e:
+                print(f"Monitor loop error: {e}")
+                import traceback
+                traceback.print_exc()
             
-            # 2. Engine prediction
-            best_move = self.engine.get_best_move(fen) # Fen is valid dummy
+            time.sleep(0.3) # Check ~3 times per second
+
+    def update_monitoring_ui(self, best_move, fen):
+        if not self.monitoring:
+            return
             
-            # 3. Update UI
-            self.after(0, lambda: self.show_analysis_result(fen, best_move))
-
-        threading.Thread(target=_analyze, daemon=True).start()
-
-    def show_analysis_result(self, fen, best_move):
-        self.status_label.configure(text=f"Best Move: {best_move}")
+        move_str = str(best_move) if best_move else "--"
+        self.move_label.configure(text=f"Best Move: {move_str}")
+        self.fen_label.configure(text=f"FEN: {fen}")
         
-        for widget in self.content_frame.winfo_children():
-             widget.destroy()
+        # Draw on overlay
+        if self.projection_overlay:
+            self.projection_overlay.draw_best_move(best_move)
 
-        result_label = ctk.CTkLabel(self.content_frame, text=f"Suggested Move: {best_move}", font=("Arial", 24, "bold"))
-        result_label.grid(row=0, column=0, pady=20)
+    def stop_monitoring(self):
+        self.monitoring = False
+        self.monitor_region = None
+        self.last_fen = None
         
-        fen_label = ctk.CTkLabel(self.content_frame, text=f"FEN detected: {fen}", wraplength=400)
-        fen_label.grid(row=1, column=0, pady=10)
-        
+        if self.projection_overlay:
+            self.projection_overlay.destroy()
+            self.projection_overlay = None
+            
+        self.stop_btn.grid_remove()
+        self.status_label.configure(text="Monitoring Stopped")
+
     def toggle_analysis(self):
         if self.analysis_var.get():
             self.update_analysis()
@@ -151,11 +217,6 @@ class ChessApp(ctk.CTk):
             self.status_label.configure(text=f"Game Over: {result}")
             return
 
-        # If it's AI turn (Black), make move. 
-        # For this demo, let's say "Local Game" is Human vs Human if we want to use Analysis freely?
-        # Or Human vs AI. The original code suggested Human vs AI (AI move triggered).
-        # Let's keep Human vs AI but allow analysis.
-        
         if self.analysis_var.get():
             self.update_analysis()
 
