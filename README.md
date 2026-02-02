@@ -120,3 +120,17 @@ python main.py
 - **Performance**: High `Best Moves` count or deep analysis may use significant CPU resources. Lower the number of moves if the app lags.
 
 
+
+## License
+MIT License
+
+```bibtex
+@misc{CheckerChesser,
+  author = {algorembrant},
+  title = {CheckerChesser},
+  year = {2026},
+  publisher = {GitHub},
+  journal = {GitHub repository},
+  howpublished = {\url{https://github.com/algorembrant/CheckerChesser}},
+}
+```
