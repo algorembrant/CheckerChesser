@@ -121,8 +121,7 @@ python main.py
 
 
 
-## License
-MIT License
+## Citation
 
 ```bibtex
 @misc{CheckerChesser,
