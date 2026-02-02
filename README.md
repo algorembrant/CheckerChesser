@@ -17,7 +17,8 @@ _So yeah, it was so good I got banned_
 
 **_All that grind for nothing lol!_**
 
-<img width="333" height="134" alt="image" src="https://github.com/user-attachments/assets/0e0b7dcf-0985-4da1-8176-8e3f1ec87c11" />
+<img width="331" height="126" alt="image" src="https://github.com/user-attachments/assets/e4b20a49-4d3b-4424-b24e-5fdafece9185" />
+
 
 
 
