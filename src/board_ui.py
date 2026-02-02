@@ -14,6 +14,7 @@ class BoardUI(ctk.CTkFrame):
         self.flipped = False  # Board orientation
         self.edit_mode = False
         self.selected_edit_piece = None  # Piece to place in edit mode (None = Delete)
+        self.last_analysis_moves = [] # cache for redrawing arrows
         
         self.canvas.bind("<Button-1>", self.on_click)
         self.canvas.bind("<Configure>", self.on_resize)
@@ -81,6 +82,10 @@ class BoardUI(ctk.CTkFrame):
             
         if self.selected_square is not None:
              self.highlight_square(self.selected_square)
+
+        # Redraw arrows if they exist
+        if self.last_analysis_moves:
+             self.display_analysis(self.last_analysis_moves, cache=False)
 
     def draw_piece(self, x, y, piece):
         symbol = piece.unicode_symbol()
@@ -202,7 +207,10 @@ class BoardUI(ctk.CTkFrame):
         
         self.canvas.create_line(x1, y1, x2, y2, fill=color, width=width, arrow="last", arrowshape=(16, 20, 6), tag="arrow")
 
-    def display_analysis(self, top_moves):
+    def display_analysis(self, top_moves, cache=True):
+        if cache:
+             self.last_analysis_moves = top_moves
+             
         self.canvas.delete("arrow")
         
         colors = ["#00FF00", "#00FFFF", "#FFFF00"]

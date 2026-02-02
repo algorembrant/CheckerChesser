@@ -7,3 +7,4 @@ numpy
 paramiko
 pyglet
 pywin32
+pyautogui

@@ -7,6 +7,7 @@ from src.engine import EngineHandler
 from src.board_ui import BoardUI
 from src.overlay import SelectionOverlay, ProjectionOverlay
 from src.vision import VisionHandler
+from src.mirror import MirrorHandler
 
 class ChessApp(ctk.CTk):
     def __init__(self):
@@ -20,12 +21,12 @@ class ChessApp(ctk.CTk):
         self.game_state = GameState()
         self.engine = EngineHandler()
         self.vision = VisionHandler()
+        self.mirror = MirrorHandler()
         
-        # Screen Analysis State
-        self.monitoring = False
-        self.monitor_region = None
+        # Screen Mirroring State
+        self.mirroring = False
+        self.mirror_region = None
         self.projection_overlay = None
-        self.last_fen = None
         
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=0) # Sidebar
@@ -41,10 +42,10 @@ class ChessApp(ctk.CTk):
         self.new_game_btn = ctk.CTkButton(self.sidebar, text="New Local Game", command=self.start_local_game)
         self.new_game_btn.grid(row=1, column=0, padx=20, pady=10)
         
-        self.analysis_btn = ctk.CTkButton(self.sidebar, text="Screen Analysis", command=self.start_screen_analysis)
-        self.analysis_btn.grid(row=2, column=0, padx=20, pady=10)
+        self.mirror_btn = ctk.CTkButton(self.sidebar, text="Screen Mirroring", command=self.start_screen_mirroring)
+        self.mirror_btn.grid(row=2, column=0, padx=20, pady=10)
         
-        self.stop_btn = ctk.CTkButton(self.sidebar, text="Stop Monitoring", command=self.stop_monitoring, fg_color="red", hover_color="darkred")
+        self.stop_btn = ctk.CTkButton(self.sidebar, text="Stop Mirroring", command=self.stop_mirroring, fg_color="red", hover_color="darkred")
         self.stop_btn.grid(row=3, column=0, padx=20, pady=10)
         self.stop_btn.grid_remove() # Hidden by default
 
@@ -96,7 +97,7 @@ class ChessApp(ctk.CTk):
         threading.Thread(target=_init, daemon=True).start()
 
     def start_local_game(self):
-        self.stop_monitoring() # Stop any active monitoring
+        self.stop_mirroring() # Stop any active mirroring
         
         # Clear content
         for widget in self.content_frame.winfo_children():
@@ -169,6 +170,10 @@ class ChessApp(ctk.CTk):
         self.two_player_switch = ctk.CTkSwitch(toggles_frame, text="Two Player Mode", 
                                                variable=self.two_player_var, command=self.toggle_two_player)
         self.two_player_switch.pack(side="left", padx=15)
+        
+        # Force Move Button (Initially hidden or shown based on mode? Best to just have it handy)
+        self.force_move_btn = ctk.CTkButton(left_frame, text="⚡ Force Move", command=self.force_ai_move, width=100, fg_color="orange", hover_color="darkorange")
+        self.force_move_btn.pack(side="left", padx=10)
 
         # Edit Mode Toggle
         self.edit_mode_var = ctk.BooleanVar(value=False)
@@ -191,105 +196,53 @@ class ChessApp(ctk.CTk):
         self.bind("<<MoveMade>>", self.on_move_made)
         self.status_label.configure(text="Mode: vs AI (White)")
 
-    def start_screen_analysis(self):
-        self.status_label.configure(text="Select Region...")
+    def start_screen_mirroring(self):
+        self.status_label.configure(text="Select Region to Mirror to...")
         self.withdraw() # Hide main win
         
         # Function called when region is selected
         def on_selection(region):
             self.deiconify() # Show main win
-            self.begin_monitoring(region)
+            self.begin_mirroring(region)
 
         SelectionOverlay(self, on_selection)
 
-    def begin_monitoring(self, region):
+    def begin_mirroring(self, region):
         """
-        Start continuous monitoring of the selected region.
-        Assumes the board is at the STARTING POSITION for calibration.
+        Start mirroring moves to the selected region.
         """
-        self.monitor_region = region
-        self.monitoring = True
-        self.last_fen = None
+        self.mirror_region = region
+        self.mirroring = True
         
         self.stop_btn.grid() # Show stop button
         
-        # Clear content and show monitoring UI
-        for widget in self.content_frame.winfo_children():
-            widget.destroy()
+        # Clear content and show mirroring UI
+        # We can actually KEEP the board UI for mirroring, so the user can play!
+        # The original analysis mode cleared everything. Mirroring implies playing locally.
         
-        info_label = ctk.CTkLabel(self.content_frame, text="Monitoring Active\nCalibrating from starting position...", font=("Arial", 18))
-        info_label.grid(row=0, column=0, pady=20)
+        # Just update status
+        self.status_label.configure(text="Mode: Screen Mirroring Active")
+        self.stop_btn.grid()
         
-        self.move_label = ctk.CTkLabel(self.content_frame, text="Best Move: --", font=("Arial", 24, "bold"))
-        self.move_label.grid(row=1, column=0, pady=10)
-        
-        self.fen_label = ctk.CTkLabel(self.content_frame, text="FEN: --", wraplength=500)
-        self.fen_label.grid(row=2, column=0, pady=10)
-        
-        # Create projection overlay
+        # Optional: Show overlay on the target region to confirm?
         self.projection_overlay = ProjectionOverlay(region)
-        
-        # Start monitoring thread
-        threading.Thread(target=self.monitor_loop, daemon=True).start()
-        self.status_label.configure(text="Mode: Screen Monitoring")
+        # Maybe draw a box or something? For now just keep it simple.
 
-    def monitor_loop(self):
-        """
-        Continuously capture, recognize, and analyze.
-        """
-        calibrated = False
-        
-        while self.monitoring:
-            try:
-                img = self.vision.capture_screen(self.monitor_region)
-                
-                if not calibrated:
-                    # Calibrate on first pass (assumes starting position)
-                    self.vision.calibrate(img)
-                    calibrated = True
-                    self.after(0, lambda: self.status_label.configure(text="Calibrated! Monitoring..."))
-                
-                fen = self.vision.get_fen_from_image(img)
-                
-                if fen and fen != self.last_fen:
-                    self.last_fen = fen
-                    
-                    # Get best move
-                    best_move = self.engine.get_best_move(fen, time_limit=0.5)
-                    
-                    # Update UI on main thread
-                    self.after(0, lambda m=best_move, f=fen: self.update_monitoring_ui(m, f))
-                    
-            except Exception as e:
-                print(f"Monitor loop error: {e}")
-                import traceback
-                traceback.print_exc()
-            
-            time.sleep(0.3) # Check ~3 times per second
-
-    def update_monitoring_ui(self, best_move, fen):
-        if not self.monitoring:
-            return
-            
-        move_str = str(best_move) if best_move else "--"
-        self.move_label.configure(text=f"Best Move: {move_str}")
-        self.fen_label.configure(text=f"FEN: {fen}")
-        
-        # Draw on overlay
-        if self.projection_overlay:
-            self.projection_overlay.draw_best_move(best_move)
-
-    def stop_monitoring(self):
-        self.monitoring = False
-        self.monitor_region = None
-        self.last_fen = None
+    def stop_mirroring(self):
+        self.mirroring = False
+        self.mirror_region = None
         
         if self.projection_overlay:
             self.projection_overlay.destroy()
             self.projection_overlay = None
             
         self.stop_btn.grid_remove()
-        self.status_label.configure(text="Monitoring Stopped")
+        self.status_label.configure(text="Mirroring Stopped")
+        
+        # Restore normal status text if game is ongoing
+        if not self.game_state.is_game_over():
+             turn_str = "White" if self.game_state.board.turn == chess.WHITE else "Black"
+             self.status_label.configure(text=f"Your Turn ({turn_str})")
 
     def toggle_analysis(self):
         if self.analysis_var.get():
@@ -302,6 +255,9 @@ class ChessApp(ctk.CTk):
             self.status_label.configure(text="Mode: Two Player")
             turn = "White" if self.game_state.board.turn == chess.WHITE else "Black"
             self.status_label.configure(text=f"{turn}'s Turn")
+            # Clear AI thinking text if any
+            if "Thinking" in self.status_label.cget("text"):
+                 self.status_label.configure(text=f"{turn}'s Turn")
         else:
             self.status_label.configure(text="Mode: vs AI (White)")
             if self.game_state.board.turn == chess.WHITE:
@@ -389,7 +345,7 @@ class ChessApp(ctk.CTk):
         # Check if AI should move
         ai_color = chess.WHITE if play_as == "Black" else chess.BLACK
         
-        if self.game_state.board.turn == ai_color:
+        if self.game_state.board.turn == ai_color and not self.two_player_var.get():
             self.status_label.configure(text="AI Thinking...")
             threading.Thread(target=self.make_ai_move, daemon=True).start()
         else:
@@ -448,7 +404,7 @@ class ChessApp(ctk.CTk):
             self.score_label.configure(text="  |  ".join(score_texts))
             
             # If no mate found in top moves, ensure status doesn't stick (unless editing/thinking)
-            if not found_mate and not self.monitoring and not self.edit_mode_var.get() and "Thinking" not in self.status_label.cget("text"):
+            if not found_mate and not self.mirroring and not self.edit_mode_var.get() and "Thinking" not in self.status_label.cget("text"):
                  # Restore turn status
                  turn = "White" if self.game_state.board.turn == chess.WHITE else "Black"
                  if self.two_player_var.get():
@@ -463,7 +419,33 @@ class ChessApp(ctk.CTk):
         if self.game_state.is_game_over():
             result = self.game_state.board.result()
             self.status_label.configure(text=f"Game Over: {result}")
-            return
+            # Do NOT return here, we might still want to mirror the last move that caused game over?
+            # Actually if game is over, we still want to update UI.
+            # But let's act normal.
+            
+        # MIRROR LOGIC
+        if self.mirroring and event:
+             # Just made a move.
+             # The event might not carry the move info directly if it's a generic binding, 
+             # but we can get the last move from the board stack.
+             try:
+                 if self.game_state.board.move_stack:
+                     last_move = self.game_state.board.peek()
+                     # If it's a move made by the player (or AI if we want to mirror AI too)
+                     # For now, let's mirror ALL moves (Player and AI) so the external board stays in sync?
+                     # User said "whatever i move ... it will mirroe".
+                     # If AI moves on local board, user probably wants that on external board too if playing against external opponent?
+                     # OR if playing vs AI locally, and mirroring to analysis board.
+                     # Let's mirror everything.
+                     
+                     # Need to know if we are 'flipped' on the external board?
+                     # User selects one region. We assume it matches our orientation?
+                     # Let's assume standard orientation for now.
+                     # TODO: Add flip toggle for mirror region if needed.
+                     
+                     threading.Thread(target=self.mirror.execute_move, args=(last_move, self.mirror_region), daemon=True).start()
+             except Exception as e:
+                 print(f"Mirror error: {e}")
 
         if self.analysis_var.get():
             self.update_analysis()
@@ -477,7 +459,7 @@ class ChessApp(ctk.CTk):
             # vs AI mode
             if self.game_state.board.turn == chess.BLACK:
                 # Trigger AI move
-                if not self.edit_mode_var.get():
+                if not self.edit_mode_var.get() and not self.two_player_var.get():
                    self.status_label.configure(text="AI Thinking...")
                    threading.Thread(target=self.make_ai_move, daemon=True).start()
             else:
@@ -504,3 +486,11 @@ class ChessApp(ctk.CTk):
             
         if self.game_state.is_game_over():
             self.status_label.configure(text=f"Game Over: {self.game_state.board.result()}")
+            
+    def force_ai_move(self):
+        """Force the AI to make a move for the current side."""
+        if self.game_state.is_game_over():
+            return
+            
+        self.status_label.configure(text="Forcing AI Move...")
+        threading.Thread(target=self.make_ai_move, daemon=True).start()
