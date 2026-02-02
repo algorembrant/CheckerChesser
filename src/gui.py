@@ -13,7 +13,8 @@ class ChessApp(ctk.CTk):
         super().__init__()
         
         self.title("CheckerChesser")
-        self.geometry("900x650")
+        self.geometry("900x700")
+        self.minsize(600, 500)  # Minimum window size
         
         # Initialize Logic
         self.game_state = GameState()
@@ -79,18 +80,80 @@ class ChessApp(ctk.CTk):
             widget.destroy()
             
         self.game_state.reset()
-        self.board_ui = BoardUI(self.content_frame, self.game_state, width=600, height=600)
-        self.board_ui.grid(row=0, column=0, padx=20, pady=20)
         
-        # Analysis Controls
+        # Controls Frame (horizontal layout for controls)
+        self.controls_frame = ctk.CTkFrame(self.content_frame, fg_color="transparent")
+        self.controls_frame.grid(row=1, column=0, pady=10, sticky="ew")
+        
+        # Left controls
+        left_frame = ctk.CTkFrame(self.controls_frame, fg_color="transparent")
+        left_frame.pack(side="left", padx=20)
+        
+        # Play As selector
+        self.play_as_var = ctk.StringVar(value="White")
+        play_as_label = ctk.CTkLabel(left_frame, text="Play as:")
+        play_as_label.pack(side="left", padx=(0, 5))
+        self.play_as_menu = ctk.CTkOptionMenu(left_frame, variable=self.play_as_var, 
+                                               values=["White", "Black"],
+                                               command=self.on_play_as_change,
+                                               width=80)
+        self.play_as_menu.pack(side="left", padx=5)
+
+        # First Move selector
+        self.first_move_var = ctk.StringVar(value="White")
+        first_move_label = ctk.CTkLabel(left_frame, text="First Move:")
+        first_move_label.pack(side="left", padx=(10, 5))
+        self.first_move_menu = ctk.CTkOptionMenu(left_frame, variable=self.first_move_var,
+                                                  values=["White", "Black"],
+                                                  command=self.on_first_move_change,
+                                                  width=80)
+        self.first_move_menu.pack(side="left", padx=5)
+        
+        # Flip Board button
+        self.flip_btn = ctk.CTkButton(left_frame, text="⟳ Flip Board", command=self.flip_board, width=100)
+        self.flip_btn.pack(side="left", padx=10)
+        
+        # Right controls
+        right_frame = ctk.CTkFrame(self.controls_frame, fg_color="transparent")
+        right_frame.pack(side="right", padx=20)
+        
+        # Best Moves count
+        moves_label = ctk.CTkLabel(right_frame, text="Show Best Moves:")
+        moves_label.pack(side="left", padx=(0, 5))
+        self.best_moves_var = ctk.StringVar(value="3")
+        self.best_moves_menu = ctk.CTkOptionMenu(right_frame, variable=self.best_moves_var, 
+                                                  values=["1", "2", "3"],
+                                                  command=self.on_best_moves_change,
+                                                  width=60)
+        self.best_moves_menu.pack(side="left", padx=5)
+        
+        # Board UI
+        self.board_ui = BoardUI(self.content_frame, self.game_state)
+        self.board_ui.grid(row=0, column=0, padx=20, pady=20, sticky="nsew")
+        
+        # Toggles Frame
+        toggles_frame = ctk.CTkFrame(self.content_frame, fg_color="transparent")
+        toggles_frame.grid(row=2, column=0, pady=5)
+        
+        # Analysis Toggle
         self.analysis_var = ctk.BooleanVar(value=False)
-        self.analysis_switch = ctk.CTkSwitch(self.content_frame, text="Analysis Mode (ML Preview)", 
+        self.analysis_switch = ctk.CTkSwitch(toggles_frame, text="Analysis Mode", 
                                              variable=self.analysis_var, command=self.toggle_analysis)
-        self.analysis_switch.grid(row=1, column=0, pady=10)
+        self.analysis_switch.pack(side="left", padx=15)
+        
+        # Two Player Mode Toggle
+        self.two_player_var = ctk.BooleanVar(value=False)
+        self.two_player_switch = ctk.CTkSwitch(toggles_frame, text="Two Player Mode", 
+                                               variable=self.two_player_var, command=self.toggle_two_player)
+        self.two_player_switch.pack(side="left", padx=15)
+        
+        # Score display label
+        self.score_label = ctk.CTkLabel(self.content_frame, text="", font=("Arial", 12))
+        self.score_label.grid(row=3, column=0, pady=5)
         
         # Bind move event
         self.bind("<<MoveMade>>", self.on_move_made)
-        self.status_label.configure(text="Mode: Local Play")
+        self.status_label.configure(text="Mode: vs AI (White)")
 
     def start_screen_analysis(self):
         self.status_label.configure(text="Select Region...")
@@ -198,17 +261,98 @@ class ChessApp(ctk.CTk):
         else:
             self.board_ui.canvas.delete("arrow")
 
+    def toggle_two_player(self):
+        if self.two_player_var.get():
+            self.status_label.configure(text="Mode: Two Player")
+            turn = "White" if self.game_state.board.turn == chess.WHITE else "Black"
+            self.status_label.configure(text=f"{turn}'s Turn")
+        else:
+            self.status_label.configure(text="Mode: vs AI (White)")
+            if self.game_state.board.turn == chess.WHITE:
+                self.status_label.configure(text="Your Turn (White)")
+
+    def flip_board(self):
+        """Flip the board orientation."""
+        if hasattr(self, 'board_ui') and self.board_ui:
+            self.board_ui.flipped = not getattr(self.board_ui, 'flipped', False)
+            self.board_ui.draw_board()
+            
+    def on_play_as_change(self, value):
+        """Handle play as color change."""
+        self.reset_game()
+
+    def on_first_move_change(self, value):
+        """Handle first move color change."""
+        self.reset_game()
+
+    def reset_game(self):
+        """Reset the game state based on current controls."""
+        self.game_state.reset()
+        
+        # Set turn based on First Move selection
+        first_move_color = chess.BLACK if self.first_move_var.get() == "Black" else chess.WHITE
+        self.game_state.board.turn = first_move_color
+        
+        play_as = self.play_as_var.get()
+        
+        if play_as == "Black":
+            # Flip board so black is at bottom
+            self.board_ui.flipped = True
+        else:
+            self.board_ui.flipped = False
+            
+        # Check if AI should move
+        ai_color = chess.WHITE if play_as == "Black" else chess.BLACK
+        
+        if self.game_state.board.turn == ai_color:
+            self.status_label.configure(text="AI Thinking...")
+            threading.Thread(target=self.make_ai_move, daemon=True).start()
+        else:
+            turn_str = "White" if self.game_state.board.turn == chess.WHITE else "Black"
+            self.status_label.configure(text=f"Your Turn ({turn_str})")
+            
+        self.board_ui.draw_board()
+        
+    def on_best_moves_change(self, value):
+        """Handle best moves count change."""
+        if self.analysis_var.get():
+            self.update_analysis()
+
     def update_analysis(self):
         if not self.analysis_var.get():
             return
             
         def _analyze():
             fen = self.game_state.get_fen()
-            # Fetch top 3 moves
-            top_moves = self.engine.get_top_moves(fen, limit=3)
-            self.after(0, lambda: self.board_ui.display_analysis(top_moves))
+            limit = int(self.best_moves_var.get()) if hasattr(self, 'best_moves_var') else 3
+            top_moves = self.engine.get_top_moves(fen, limit=limit)
+            self.after(0, lambda: self.display_analysis_results(top_moves))
             
         threading.Thread(target=_analyze, daemon=True).start()
+
+    def display_analysis_results(self, top_moves):
+        """Display analysis results with scores."""
+        if hasattr(self, 'board_ui') and self.board_ui:
+            self.board_ui.display_analysis(top_moves)
+        
+        # Update score label
+        if hasattr(self, 'score_label') and top_moves:
+            score_texts = []
+            for i, move_data in enumerate(top_moves):
+                move = move_data["move"]
+                score = move_data["score"]
+                # Convert score to more readable format
+                if abs(score) >= 9000:
+                    # Mate score
+                    mate_in = (10000 - abs(score))
+                    score_str = f"M{mate_in}" if score > 0 else f"-M{mate_in}"
+                else:
+                    score_str = f"{score/100:+.2f}"
+                colors = ["🟢", "🔵", "🟡"]
+                score_texts.append(f"{colors[i]} {move}: {score_str}")
+            self.score_label.configure(text="  |  ".join(score_texts))
+        elif hasattr(self, 'score_label'):
+            self.score_label.configure(text="")
 
     def on_move_made(self, event=None):
         # Check for game over
@@ -220,12 +364,19 @@ class ChessApp(ctk.CTk):
         if self.analysis_var.get():
             self.update_analysis()
 
-        if self.game_state.board.turn == chess.BLACK:
-            # Trigger AI move
-            self.status_label.configure(text="Thinking...")
-            threading.Thread(target=self.make_ai_move, daemon=True).start()
+        # Check if two player mode
+        if self.two_player_var.get():
+            # Two player mode - just update turn indicator
+            turn = "White" if self.game_state.board.turn == chess.WHITE else "Black"
+            self.status_label.configure(text=f"{turn}'s Turn")
         else:
-            self.status_label.configure(text="Your Turn")
+            # vs AI mode
+            if self.game_state.board.turn == chess.BLACK:
+                # Trigger AI move
+                self.status_label.configure(text="AI Thinking...")
+                threading.Thread(target=self.make_ai_move, daemon=True).start()
+            else:
+                self.status_label.configure(text="Your Turn (White)")
 
     def make_ai_move(self):
         # AI plays best move
