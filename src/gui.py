@@ -58,7 +58,8 @@ class ChessApp(ctk.CTk):
         self.content_frame.grid_columnconfigure(0, weight=1)
 
         # Init Engine
-        self.init_engine_thread()
+        # Defer execution to ensure mainloop is running before thread tries to callback
+        self.after(200, self.init_engine_thread)
         
         # Current Board View
         self.board_ui = None
