@@ -4,6 +4,8 @@ CheckerChesser is a powerful chess utility application that combines a local che
 
 <img width="1354" height="680" alt="image" src="https://github.com/user-attachments/assets/dc902cf0-a31c-4abf-8f85-9dda475eaac8" />
 <img width="1323" height="719" alt="image" src="https://github.com/user-attachments/assets/1dc5c833-bf2b-4562-a5f7-8630c72fefab" />
+<img width="1347" height="675" alt="image" src="https://github.com/user-attachments/assets/4005f25a-b1ef-42a6-a732-cad55ea27a32" />
+
 
 
 
