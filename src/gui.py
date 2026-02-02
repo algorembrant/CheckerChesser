@@ -61,9 +61,31 @@ class ChessApp(ctk.CTk):
         # Defer execution to ensure mainloop is running before thread tries to callback
         self.after(200, self.init_engine_thread)
         
+        # Sidebar Toggle State
+        self.sidebar_visible = True
+        
+        # Sidebar Toggle Button (Floating)
+        self.sidebar_toggle_btn = ctk.CTkButton(self, text="☰", width=30, height=30, 
+                                                command=self.toggle_sidebar,
+                                                fg_color="gray20", hover_color="gray30")
+        self.sidebar_toggle_btn.place(x=10, y=10)
+
         # Current Board View
         self.board_ui = None
         self.start_local_game()
+
+    def toggle_sidebar(self):
+        if self.sidebar_visible:
+            self.sidebar.grid_remove()
+            self.sidebar_visible = False
+            self.sidebar_toggle_btn.configure(fg_color="transparent") # Blend in more when closed? Or keep visible?
+            # When closed, content takes full width. 
+            # self.grid_columnconfigure(0, weight=0) is already set for sidebar column.
+            # But the sidebar frame is gone, so column 0 collapses.
+        else:
+            self.sidebar.grid()
+            self.sidebar_visible = True
+            self.sidebar_toggle_btn.configure(fg_color="gray20")
 
     def init_engine_thread(self):
         def _init():
