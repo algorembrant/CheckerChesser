@@ -75,8 +75,12 @@ class BoardUI(ctk.CTkFrame):
                 if piece:
                     self.draw_piece(x1, y1, piece)
         
+        # Highlight King if in Check
+        if self.game_state.board.is_check():
+            self.highlight_king_check()
+            
         if self.selected_square is not None:
-            self.highlight_square(self.selected_square)
+             self.highlight_square(self.selected_square)
 
     def draw_piece(self, x, y, piece):
         symbol = piece.unicode_symbol()
@@ -100,6 +104,23 @@ class BoardUI(ctk.CTkFrame):
             fill=fill_color
         )
         
+    def highlight_king_check(self):
+        """Highlight the King's square in red if in check."""
+        king_square = self.game_state.board.king(self.game_state.board.turn)
+        if king_square is not None:
+             file = chess.square_file(king_square)
+             rank = chess.square_rank(king_square)
+             visual_file, visual_rank = self.get_visual_coords(file, rank)
+             
+             x1 = self.offset_x + visual_file * self.square_size
+             y1 = self.offset_y + visual_rank * self.square_size
+             x2 = x1 + self.square_size
+             y2 = y1 + self.square_size
+             
+             # Create a red glow/border
+             self.canvas.create_oval(x1+2, y1+2, x2-2, y2-2, outline="#FF0000", width=4, tag="check")
+             self.canvas.create_rectangle(x1, y1, x2, y2, fill="red", stipple="gray25", outline="")
+
     def highlight_square(self, square):
         file = chess.square_file(square)
         rank = chess.square_rank(square)

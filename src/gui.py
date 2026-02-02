@@ -400,19 +400,38 @@ class ChessApp(ctk.CTk):
         # Update score label
         if hasattr(self, 'score_label') and top_moves:
             score_texts = []
+            found_mate = False
             for i, move_data in enumerate(top_moves):
                 move = move_data["move"]
                 score = move_data["score"]
                 # Convert score to more readable format
                 if abs(score) >= 9000:
                     # Mate score
+                    found_mate = True
                     mate_in = (10000 - abs(score))
                     score_str = f"M{mate_in}" if score > 0 else f"-M{mate_in}"
+                    
+                    if i == 0: # If top move is mate
+                         if score > 0:
+                             self.status_label.configure(text=f"White wins in {mate_in}!")
+                         else:
+                             self.status_label.configure(text=f"Black wins in {mate_in}!")
                 else:
                     score_str = f"{score/100:+.2f}"
+                    
                 colors = ["🟢", "🔵", "🟡"]
                 score_texts.append(f"{colors[i]} {move}: {score_str}")
+            
             self.score_label.configure(text="  |  ".join(score_texts))
+            
+            # If no mate found in top moves, ensure status doesn't stick (unless editing/thinking)
+            if not found_mate and not self.monitoring and not self.edit_mode_var.get() and "Thinking" not in self.status_label.cget("text"):
+                 # Restore turn status
+                 turn = "White" if self.game_state.board.turn == chess.WHITE else "Black"
+                 if self.two_player_var.get():
+                      self.status_label.configure(text=f"{turn}'s Turn")
+                 # Else AI turn text is handled by 'AI Thinking' or 'Your Turn'
+                 
         elif hasattr(self, 'score_label'):
             self.score_label.configure(text="")
 
