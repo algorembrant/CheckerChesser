@@ -1,0 +1,8 @@
+customtkinter
+python-chess
+opencv-python
+pillow
+mss
+numpy
+paramiko
+pyglet
