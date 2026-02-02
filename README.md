@@ -49,8 +49,25 @@ CheckerChesser is a powerful chess utility application that combines a local che
     ```
     *(Requires: customtkinter, python-chess, mss, opencv-python, numpy)*
 
-3.  **Setup**:
-    - Ensure `stockfish.exe` is inside the root `CheckerChesser` directory.
+3.  **Setup (Stockfish Guide)**:
+    This application requires the **Stockfish Chess Engine** to function.
+    
+    **Step-by-Step Guide:**
+    1.  **Download**: Visit the official Stockfish website: [https://stockfishchess.org/download/](https://stockfishchess.org/download/)
+    2.  **Select Version**: Download the version suitable for your system (usually "Windows (AVX2)" or "Windows (x64-modern)").
+    3.  **Extract**: Unzip the downloaded folder. Inside, you will find an executable file (e.g., `stockfish-windows-x86-64-avx2.exe`).
+    4.  **Rename**: Rename this file to simply `stockfish.exe`.
+    5.  **Place File**: Move `stockfish.exe` directly into the `CheckerChesser` project folder.
+    
+    **Correct Folder Structure:**
+    ```text
+    CheckerChesser/
+    ├── src/
+    ├── main.py
+    ├── requirements.txt
+    ├── stockfish.exe  <-- PLACE HERE
+    └── README.md
+    ```
 
 ---
 
