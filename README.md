@@ -2,6 +2,11 @@
 
 CheckerChesser is a powerful chess utility application that combines a local chess analysis board with real-time screen monitoring capabilities. It is designed to assist players in analyzing games, finding best moves, and testing positions.
 
+<img width="1354" height="680" alt="image" src="https://github.com/user-attachments/assets/dc902cf0-a31c-4abf-8f85-9dda475eaac8" />
+<img width="1323" height="719" alt="image" src="https://github.com/user-attachments/assets/1dc5c833-bf2b-4562-a5f7-8630c72fefab" />
+
+
+
 ## Core Features
 
 ### 1. Local Analysis Board
