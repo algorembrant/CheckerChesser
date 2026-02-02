@@ -12,6 +12,8 @@ class BoardUI(ctk.CTkFrame):
         self.selected_square = None
         self.pieces = {}
         self.flipped = False  # Board orientation
+        self.edit_mode = False
+        self.selected_edit_piece = None  # Piece to place in edit mode (None = Delete)
         
         self.canvas.bind("<Button-1>", self.on_click)
         self.canvas.bind("<Configure>", self.on_resize)
@@ -126,6 +128,13 @@ class BoardUI(ctk.CTkFrame):
         
         chess_square = self.get_chess_square_from_visual(visual_file, visual_rank)
         
+        if self.edit_mode:
+            # Edit Mode Logic
+            self.game_state.set_piece(chess_square, self.selected_edit_piece)
+            self.draw_board()
+            return
+
+        # Normal Play Logic
         if self.selected_square is None:
             piece = self.game_state.board.piece_at(chess_square)
             if piece and piece.color == self.game_state.board.turn:

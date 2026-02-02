@@ -17,6 +17,10 @@ class GameState:
         except:
             return False
 
+    def set_piece(self, square, piece):
+        """Set a piece on the board directly."""
+        self.board.set_piece_at(square, piece)
+
     def get_fen(self):
         return self.board.fen()
 

@@ -146,10 +146,23 @@ class ChessApp(ctk.CTk):
         self.two_player_switch = ctk.CTkSwitch(toggles_frame, text="Two Player Mode", 
                                                variable=self.two_player_var, command=self.toggle_two_player)
         self.two_player_switch.pack(side="left", padx=15)
+
+        # Edit Mode Toggle
+        self.edit_mode_var = ctk.BooleanVar(value=False)
+        self.edit_mode_switch = ctk.CTkSwitch(toggles_frame, text="Edit Mode", 
+                                              variable=self.edit_mode_var, command=self.toggle_edit_mode)
+        self.edit_mode_switch.pack(side="left", padx=15)
         
+        # Piece Palette (Hidden by default)
+        self.palette_frame = ctk.CTkFrame(self.content_frame, fg_color="transparent")
+        self.palette_frame.grid(row=3, column=0, pady=5)
+        self.palette_frame.grid_remove()
+        
+        self.init_palette()
+
         # Score display label
         self.score_label = ctk.CTkLabel(self.content_frame, text="", font=("Arial", 12))
-        self.score_label.grid(row=3, column=0, pady=5)
+        self.score_label.grid(row=4, column=0, pady=5)
         
         # Bind move event
         self.bind("<<MoveMade>>", self.on_move_made)
@@ -279,10 +292,59 @@ class ChessApp(ctk.CTk):
             
     def on_play_as_change(self, value):
         """Handle play as color change."""
+        if self.edit_mode_var.get():
+             return # Do not reset if editing
         self.reset_game()
+        
+    def init_palette(self):
+        """Initialize the piece palette for editing."""
+        pieces = [
+            (chess.PAWN, chess.WHITE, "♙"), (chess.KNIGHT, chess.WHITE, "♘"), (chess.BISHOP, chess.WHITE, "♗"),
+            (chess.ROOK, chess.WHITE, "♖"), (chess.QUEEN, chess.WHITE, "♕"), (chess.KING, chess.WHITE, "♔"),
+            (chess.PAWN, chess.BLACK, "♟"), (chess.KNIGHT, chess.BLACK, "♞"), (chess.BISHOP, chess.BLACK, "♝"),
+            (chess.ROOK, chess.BLACK, "♜"), (chess.QUEEN, chess.BLACK, "♛"), (chess.KING, chess.BLACK, "♚")
+        ]
+        
+        # White pieces row
+        for i, (pt, color, symbol) in enumerate(pieces[:6]):
+            btn = ctk.CTkButton(self.palette_frame, text=symbol, width=40, font=("Segoe UI Symbol", 24),
+                                command=lambda p=chess.Piece(pt, color): self.select_palette_piece(p))
+            btn.grid(row=0, column=i, padx=2, pady=2)
+            
+        # Black pieces row
+        for i, (pt, color, symbol) in enumerate(pieces[6:]):
+            btn = ctk.CTkButton(self.palette_frame, text=symbol, width=40, font=("Segoe UI Symbol", 24),
+                                command=lambda p=chess.Piece(pt, color): self.select_palette_piece(p))
+            btn.grid(row=1, column=i, padx=2, pady=2)
+            
+        # Trash / Delete
+        trash_btn = ctk.CTkButton(self.palette_frame, text="🗑", width=40, font=("Segoe UI Symbol", 20), fg_color="red", hover_color="darkred",
+                                  command=lambda: self.select_palette_piece(None))
+        trash_btn.grid(row=0, column=6, rowspan=2, padx=5, sticky="ns")
+
+    def select_palette_piece(self, piece):
+        self.board_ui.selected_edit_piece = piece
+
+    def toggle_edit_mode(self):
+        is_edit = self.edit_mode_var.get()
+        self.board_ui.edit_mode = is_edit
+        self.board_ui.selected_square = None # Clear selection
+        self.board_ui.draw_board()
+        
+        if is_edit:
+            self.palette_frame.grid()
+            self.status_label.configure(text="Edit Mode: Select piece to place")
+        else:
+            self.palette_frame.grid_remove()
+            self.status_label.configure(text="Edit Mode Disabled")
+            # Resume game logic state
+            turn_str = "White" if self.game_state.board.turn == chess.WHITE else "Black"
+            self.status_label.configure(text=f"Your Turn ({turn_str})")
 
     def on_first_move_change(self, value):
         """Handle first move color change."""
+        if self.edit_mode_var.get():
+             return # Do not reset if editing
         self.reset_game()
 
     def reset_game(self):
@@ -373,12 +435,16 @@ class ChessApp(ctk.CTk):
             # vs AI mode
             if self.game_state.board.turn == chess.BLACK:
                 # Trigger AI move
-                self.status_label.configure(text="AI Thinking...")
-                threading.Thread(target=self.make_ai_move, daemon=True).start()
+                if not self.edit_mode_var.get():
+                   self.status_label.configure(text="AI Thinking...")
+                   threading.Thread(target=self.make_ai_move, daemon=True).start()
             else:
                 self.status_label.configure(text="Your Turn (White)")
 
     def make_ai_move(self):
+        if self.edit_mode_var.get():
+            return
+            
         # AI plays best move
         best_move = self.engine.get_best_move(self.game_state.get_fen())
         if best_move:
