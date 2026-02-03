@@ -7,6 +7,17 @@ CheckerChesser is a powerful chess utility application that combines a local che
 <img width="1347" height="675" alt="image" src="https://github.com/user-attachments/assets/4005f25a-b1ef-42a6-a732-cad55ea27a32" />
 
 <img width="587" height="187" alt="image" src="https://github.com/user-attachments/assets/85ca3a62-fdd3-4e7d-ad34-058520587279" />
+<img width="1366" height="681" alt="image" src="https://github.com/user-attachments/assets/3935066d-b436-486a-8c40-813bf5b3bed0" />
+<img width="1363" height="681" alt="image" src="https://github.com/user-attachments/assets/07a27629-3aef-4d9b-a4fc-6e16633dfb7b" />
+
+<img width="1366" height="715" alt="image" src="https://github.com/user-attachments/assets/e82defd9-f2fc-4f9b-9172-2b107105dec2" /><br><br>
+
+_So yeah, it was so good I got banned_
+<img width="863" height="115" alt="image" src="https://github.com/user-attachments/assets/2803a361-f8dd-4160-97a8-4f4d70756967" /><br><br>
+
+**_All that grind for nothing lol!_**
+
+<img width="331" height="126" alt="image" src="https://github.com/user-attachments/assets/e4b20a49-4d3b-4424-b24e-5fdafece9185" />
 
 
 
