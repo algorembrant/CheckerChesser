@@ -440,10 +440,12 @@ class ChessApp(ctk.CTk):
                      
                      # Need to know if we are 'flipped' on the external board?
                      # User selects one region. We assume it matches our orientation?
-                     # Let's assume standard orientation for now.
-                     # TODO: Add flip toggle for mirror region if needed.
+                     # User request: "make the mirror doenst matter if i am black of white... it will mirror i move on the right"
+                     # This implies they want the Target Orientation to MATCH the Local Orientation.
+                     # If I am flipped (Black), Target is flipped (Black).
+                     is_flipped = getattr(self.board_ui, 'flipped', False)
                      
-                     threading.Thread(target=self.mirror.execute_move, args=(last_move, self.mirror_region), daemon=True).start()
+                     threading.Thread(target=self.mirror.execute_move, args=(last_move, self.mirror_region, is_flipped), daemon=True).start()
              except Exception as e:
                  print(f"Mirror error: {e}")
 
