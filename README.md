@@ -80,14 +80,25 @@ _So yeah, it was so good I got banned_
     5.  **Place File**: Move `stockfish.exe` directly into the `CheckerChesser` project folder.
     
     **Correct Folder Structure:**
-    ```text
-    CheckerChesser/
-    ├── src/
-    ├── main.py
-    ├── requirements.txt
-    ├── stockfish.exe  <-- PLACE HERE
-    └── README.md
-    ```
+```text
+CheckerChesser/
+├── src/
+│   ├── __pycache__/
+│   ├── __init__.py
+│   ├── board_ui.py
+│   ├── engine.py
+│   ├── game_state.py
+│   ├── gui.py
+│   ├── mirror.py
+│   ├── overlay.py
+│   └── vision.py
+├── tests/  
+├── main.py
+├── requirements.txt
+├── stockfish.exe/  <-- PLACE HERE (folder named btw)
+├── LICENSE
+└── README.md
+```
 
 ---
 
